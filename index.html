@@ -181,8 +181,9 @@
         </dialog>
 
         <!-- Dialog: Einstellungen & Backup (Komplett von Inline-Styles befreit) -->
-        <!-- Dialog: Einstellungen & Backup (Komplett von Inline-Styles befreit) -->
-        <dialog id="settingsDialog">
+        <!-- Dialog: Einstellungen & Backup (Komplett smartphone-sicher) -->
+  
+      <dialog id="settingsDialog">
             <div class="dialog-card">
                 <h2>Einstellungen</h2>
                 
@@ -192,17 +193,15 @@
 
                 <h3 class="settings-spacing">💾 Daten-Backup</h3>
                 
-                <!-- Neuer, unaufdringlicher Erfolgs-Hinweis direkt im Dialog -->
+                <!-- Grüner Erfolgs-Hinweis direkt im Dialog -->
                 <p id="exportToast" class="hint" style="color: #34c759; font-weight: 600; display: none;">✅ Backup-Code wurde kopiert!</p>
                 
-                <p class="hint">Die Daten werden lokal auf diesem Gerät gespeichert. Kopiere die Daten in die Zwischenablage für deine Notizen-App (Export) oder spiele ein vorhandenes Backup von dort wieder ein (Import).</p>
+                <p class="hint">Die Daten werden lokal auf diesem Gerät gespeichert. Nutze die Schaltflächen für dein Backup.</p>
                 
-                <div class="dropdown-wrapper">
-                    <select id="dataManagementDropdown">
-                        <option value="" disabled selected>Daten verwalten...</option>
-                        <option value="export">📤 Daten exportieren (Backup kopieren)</option>
-                        <option value="import">📥 Daten importieren (Backup einspielen)</option>
-                    </select>
+                <!-- Zwei elegante Schaltflächen im nativen App-Look nebeneinander -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;">
+                    <button type="button" id="directExportBtn" class="secondary" style="padding: 12px; font-weight: 600; border-radius: 12px;">📤 Exportieren</button>
+                    <button type="button" id="directImportBtn" class="secondary" style="padding: 12px; font-weight: 600; border-radius: 12px;">📥 Importieren</button>
                 </div>
 
                 <div class="dialog-actions settings-spacing">
@@ -212,6 +211,7 @@
                 </div>
             </div>
         </dialog>
+
 
         <!-- iOS-Style Bestätigungs-Dialog fürs Löschen -->
         <dialog id="deleteConfirmDialog">

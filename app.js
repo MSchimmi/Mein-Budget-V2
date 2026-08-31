@@ -14,7 +14,8 @@ const DOM = {
     budgetForm: null, expenseForm: null, expenseAmount: null,
     expenseId: null, expenseCategory: null, expenseNote: null,
     expenseDialog: null, expenseTitle: null, settingsDialog: null,
-    startDayInput: null, settingsBtn: null,     dataManagementDropdown: null, exportSuccessDialog: null, closeExportSuccessBtn: null,
+    startDayInput: null, settingsBtn: null, directExportBtn: null, directImportBtn: null, exportToast: null,
+ exportSuccessDialog: null, closeExportSuccessBtn: null,
     importDataDialog: null, importCodeInput: null, confirmImportBtn: null, cancelImportBtn: null,
     addBtn: null,deleteConfirmDialog: null, confirmDeleteBtn: null, cancelDeleteBtn: null,
 
@@ -247,9 +248,6 @@ function deleteExpense(id) {
 /* ==========================================================================
    6. INITIALISIERUNG & EVENT LISTENERS
    ========================================================================== */
-/* ==========================================================================
-   6. INITIALISIERUNG & EVENT LISTENERS
-   ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Cache befüllen (Verknüpft IDs aus HTML mit dem DOM-Objekt)
     Object.keys(DOM).forEach(key => { 
@@ -274,8 +272,6 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.settingsBtn?.addEventListener("click", () => {
         DOM.settingsDialog?.showModal();
         if (DOM.startDayInput) DOM.startDayInput.value = state.startDay || 24;
-        // Zwingt das Dropdown beim Aufrufen der Einstellungen immer auf den Standardwert zurück
-        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
     });
 
     DOM.startDayInput?.addEventListener("change", (e) => {
@@ -342,34 +338,25 @@ document.addEventListener("DOMContentLoaded", () => {
         expenseIdToDelete = null;
     });
 
-    // Überwacht das Daten-Management-Dropdown im iOS-Style
-    DOM.dataManagementDropdown?.addEventListener("change", (e) => {
-        const action = e.target.value;
-        if (!action) return;
+    // Startet den Export direkt über einen echten Button-Klick (Smartphone-sicher!)
+    DOM.directExportBtn?.addEventListener("click", () => {
+        const text = JSON.stringify(state);
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                if (DOM.exportToast) {
+                    DOM.exportToast.style.display = "block";
+                    setTimeout(() => { if (DOM.exportToast) DOM.exportToast.style.display = "none"; }, 3000);
+                }
+            })
+            .catch(() => {
+                alert(`Automatisches Kopieren fehlgeschlagen. Dein Code:\n\n${text}`);
+            });
+    });
 
-        if (action === "export") {
-            const text = JSON.stringify(state);
-            navigator.clipboard.writeText(text)
-                .then(() => {
-                    // Zeigt den grünen iOS-Erfolgstext im Einstellungsfenster an
-                    if (DOM.exportToast) {
-                        DOM.exportToast.style.display = "block";
-                        // Blendet den Text nach 3 Sekunden automatisch wieder aus
-                        setTimeout(() => { if (DOM.exportToast) DOM.exportToast.style.display = "none"; }, 3000);
-                    }
-                })
-                .catch(() => {
-                    alert(`Automatisches Kopieren fehlgeschlagen. Dein Code:\n\n${text}`);
-                });
-        }
-
-        if (action === "import") {
-            if (DOM.importCodeInput) DOM.importCodeInput.value = "";
-            DOM.importDataDialog?.showModal();
-        }
-
-        // Setzt das Dropdown auf dem Smartphone SOFORT und ohne Verzögerung zurück
-        e.target.value = "";
+    // Öffnet den Import-Dialog direkt über den Button-Klick
+    DOM.directImportBtn?.addEventListener("click", () => {
+        if (DOM.importCodeInput) DOM.importCodeInput.value = "";
+        DOM.importDataDialog?.showModal();
     });
 
     // Bricht den Import ab
@@ -377,7 +364,7 @@ document.addEventListener("DOMContentLoaded", () => {
         DOM.importDataDialog?.close();
     });
 
-    // Bestätigt den Import
+    // Bestätigt den Import und schließt alle Masken
     DOM.confirmImportBtn?.addEventListener("click", () => {
         const raw = DOM.importCodeInput?.value?.trim();
         if (raw) {
@@ -389,6 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (save()) { 
                         render(); 
                         DOM.importDataDialog?.close();
+                        DOM.settingsDialog?.close(); // Schließt das Hauptmenü für besseren Komfort direkt mit
                     }
                 } else { alert("❌ Falsches Datenformat."); }
             } catch { alert("❌ Ungültiger Code."); }
@@ -397,9 +385,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Garantierter Reset aller Elemente beim Schließen der Einstellungen
+    // Reset bei manuellem Schließen
     DOM.settingsDialog?.addEventListener("close", () => {
-        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
         if (DOM.exportToast) DOM.exportToast.style.display = "none";
     });
 });
