@@ -341,6 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Daten-Export & Import über das Dropdown
     // Überwacht das Daten-Management-Dropdown im iOS-Style
+    // Überwacht das Daten-Management-Dropdown im iOS-Style
     DOM.dataManagementDropdown?.addEventListener("change", (e) => {
         const action = e.target.value;
         if (!action) return;
@@ -349,7 +350,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const text = JSON.stringify(state);
             navigator.clipboard.writeText(text)
                 .then(() => {
-                    // Öffnet das neue Apple-Style Erfolgsfenster
                     DOM.exportSuccessDialog?.showModal();
                 })
                 .catch(() => {
@@ -358,13 +358,51 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (action === "import") {
-            if (DOM.importCodeInput) DOM.importCodeInput.value = ""; // Feld leeren
-            // Öffnet das neue Apple-Style Eingabefenster
+            if (DOM.importCodeInput) DOM.importCodeInput.value = "";
             DOM.importDataDialog?.showModal();
         }
 
-        // Setzt das Dropdown sofort wieder auf den Standard-Text zurück
+        // Setzt das Dropdown sofort nach der Auswahl zurück
         e.target.value = "";
+    });
+
+    // Schließt das Export-Erfolgsfenster und setzt im Hintergrund das Dropdown zurück
+    DOM.closeExportSuccessBtn?.addEventListener("click", () => {
+        DOM.exportSuccessDialog?.close();
+        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
+    });
+
+    // Bricht den Import ab und setzt im Hintergrund das Dropdown zurück
+    DOM.cancelImportBtn?.addEventListener("click", () => {
+        DOM.importDataDialog?.close();
+        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
+    });
+
+    // Bestätigt den Import
+    DOM.confirmImportBtn?.addEventListener("click", () => {
+        const raw = DOM.importCodeInput?.value?.trim();
+        if (raw) {
+            try {
+                const imported = JSON.parse(raw);
+                if (imported.budgets && Array.isArray(imported.expenses)) {
+                    state = imported;
+                    if (!state.startDay) state.startDay = 24;
+                    if (save()) { 
+                        render(); 
+                        DOM.importDataDialog?.close();
+                    }
+                } else { alert("❌ Falsches Datenformat."); }
+            } catch { alert("❌ Ungültiger Code."); }
+        } else {
+            DOM.importDataDialog?.close();
+        }
+        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
+    });
+
+    // Die absolute Sicherheits-Absicherung für Smartphones:
+    // Sobald das Einstellungsfenster geschlossen wird, MUSS das Dropdown auf die Voreinstellung zurückspringen!
+    DOM.settingsDialog?.addEventListener("close", () => {
+        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
     });
 
     // Schließt das Export-Erfolgsfenster
