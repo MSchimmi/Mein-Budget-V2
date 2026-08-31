@@ -370,6 +370,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Schließt das Export-Erfolgsfenster
     DOM.closeExportSuccessBtn?.addEventListener("click", () => {
         DOM.exportSuccessDialog?.close();
+        
+        // NEU: Setzt das Dropdown-Menü im Hintergrund wieder sauber auf "Daten verwalten..." zurück
+        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
     });
 
     // Bricht den Import ab
