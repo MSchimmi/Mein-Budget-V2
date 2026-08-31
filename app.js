@@ -247,6 +247,9 @@ function deleteExpense(id) {
 /* ==========================================================================
    6. INITIALISIERUNG & EVENT LISTENERS
    ========================================================================== */
+/* ==========================================================================
+   6. INITIALISIERUNG & EVENT LISTENERS
+   ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Cache befüllen (Verknüpft IDs aus HTML mit dem DOM-Objekt)
     Object.keys(DOM).forEach(key => { 
@@ -255,7 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     render();
 
-    // Event-Klicks für feste Buttons (Nutzt jetzt die korrekte, äußere Klickfläche)
+    // Event-Klicks für feste Buttons
     DOM.budgetValue?.addEventListener("click", openBudget);
 
     DOM.addBtn?.addEventListener("click", () => {
@@ -339,8 +342,6 @@ document.addEventListener("DOMContentLoaded", () => {
         expenseIdToDelete = null;
     });
 
-    // Daten-Export & Import über das Dropdown
-    // Überwacht das Daten-Management-Dropdown im iOS-Style
     // Überwacht das Daten-Management-Dropdown im iOS-Style
     DOM.dataManagementDropdown?.addEventListener("change", (e) => {
         const action = e.target.value;
@@ -350,7 +351,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const text = JSON.stringify(state);
             navigator.clipboard.writeText(text)
                 .then(() => {
-                    DOM.exportSuccessDialog?.showModal();
+                    // Zeigt den grünen iOS-Erfolgstext im Einstellungsfenster an
+                    if (DOM.exportToast) {
+                        DOM.exportToast.style.display = "block";
+                        // Blendet den Text nach 3 Sekunden automatisch wieder aus
+                        setTimeout(() => { if (DOM.exportToast) DOM.exportToast.style.display = "none"; }, 3000);
+                    }
                 })
                 .catch(() => {
                     alert(`Automatisches Kopieren fehlgeschlagen. Dein Code:\n\n${text}`);
@@ -362,20 +368,13 @@ document.addEventListener("DOMContentLoaded", () => {
             DOM.importDataDialog?.showModal();
         }
 
-        // Setzt das Dropdown sofort nach der Auswahl zurück
+        // Setzt das Dropdown auf dem Smartphone SOFORT und ohne Verzögerung zurück
         e.target.value = "";
     });
 
-    // Schließt das Export-Erfolgsfenster und setzt im Hintergrund das Dropdown zurück
-    DOM.closeExportSuccessBtn?.addEventListener("click", () => {
-        DOM.exportSuccessDialog?.close();
-        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
-    });
-
-    // Bricht den Import ab und setzt im Hintergrund das Dropdown zurück
+    // Bricht den Import ab
     DOM.cancelImportBtn?.addEventListener("click", () => {
         DOM.importDataDialog?.close();
-        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
     });
 
     // Bestätigt den Import
@@ -396,50 +395,12 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             DOM.importDataDialog?.close();
         }
-        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
     });
 
-    // Die absolute Sicherheits-Absicherung für Smartphones:
-    // Sobald das Einstellungsfenster geschlossen wird, MUSS das Dropdown auf die Voreinstellung zurückspringen!
+    // Garantierter Reset aller Elemente beim Schließen der Einstellungen
     DOM.settingsDialog?.addEventListener("close", () => {
         if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
-    });
-
-    // Schließt das Export-Erfolgsfenster
-    DOM.closeExportSuccessBtn?.addEventListener("click", () => {
-        DOM.exportSuccessDialog?.close();
-        
-        // NEU: Setzt das Dropdown-Menü im Hintergrund wieder sauber auf "Daten verwalten..." zurück
-        if (DOM.dataManagementDropdown) DOM.dataManagementDropdown.value = "";
-    });
-
-    // Bricht den Import ab
-    DOM.cancelImportBtn?.addEventListener("click", () => {
-        DOM.importDataDialog?.close();
-    });
-
-    // Bestätigt den Import und liest die Daten ein
-    DOM.confirmImportBtn?.addEventListener("click", () => {
-        const raw = DOM.importCodeInput?.value?.trim();
-        if (raw) {
-            try {
-                const imported = JSON.parse(raw);
-                if (imported.budgets && Array.isArray(imported.expenses)) {
-                    state = imported;
-                    if (!state.startDay) state.startDay = 24;
-                    if (save()) { 
-                        render(); 
-                        DOM.importDataDialog?.close();
-                    }
-                } else { 
-                    alert("❌ Falsches Datenformat."); 
-                }
-            } catch { 
-                alert("❌ Ungültiger Code."); 
-            }
-        } else {
-            DOM.importDataDialog?.close();
-        }
+        if (DOM.exportToast) DOM.exportToast.style.display = "none";
     });
 });
 
@@ -448,6 +409,6 @@ document.addEventListener("DOMContentLoaded", () => {
    ========================================================================== */
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js?v=5").catch(() => {});
+        navigator.serviceWorker.register("service-worker.js?v=4").catch(() => {});
     });
 }
