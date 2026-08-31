@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<!--  -->
+<!-- Mein Budget V5 -->
+<!--  -->
+
+<!--  -->
+<!-- Metadaten vorbereiten, Manifest verknüpfen (damit die App installierbar bleibt) und CSS einbinden -->
+<!--  -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mein Budget</title>
+    
+    <!-- PWA & Styling Links -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Klassisches Favicon für den Browser-Tab (Desktop) -->
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    
+    <!-- Hochauflösende App-Icons für Smartphones & PWA -->
+    <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
+    <link rel="apple-touch-icon" href="images/icon-192.png">
+    
+    <!-- iOS Web App Meta-Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#ffe0e9">
+</head>
+<body>
+    <div class="app">
+<!--  -->
+<!--  Haupt-Dashboard mit der Budget- und Ausgabenübersicht. Strukturieren der oberen Anzeige mit dem Zeitraum, -->
+<!--  das große Hero-Feld für das Restbudget und die beiden einklappbaren Bereiche für die Verteilung (Grafik) -->
+<!--  und die Ausgabenliste. Alle IDs sind mit dem JavaScript abgestimmt -->
+<!--  -->
+        <!-- Header Bereich -->
+        <header>
+            <div class="header-box">
+                <h1>Mein Budget</h1>
+                <button type="button" id="settingsBtn" class="icon-btn" title="Einstellungen">⚙</button>
+            </div>
+            <div class="period-box">
+                <p id="periodLabel" class="period-label">Zeitraum: Lädt...</p>
+            </div>
+        </header>
+
+        <!-- Hero Karte: Restbudget & Tagesanzeige -->
+        <main>
+            <section class="card hero">
+                <span class="eyebrow">Noch verfügbar</span>
+                <div id="remaining" class="remaining">0,00 €</div>
+                <div id="daily" class="daily">0,00 € pro Tag</div>
+                <div id="days" class="days">-- Tage verbleibend</div>
+                
+                <!-- Fortschrittsbalken -->
+                <div class="progress">
+                    <div id="progressBar"></div>
+                </div>
+            </section>
+
+            <!-- Budget- & Ausgaben-Übersicht (Jetzt wieder mit "Budget"-Label) -->
+            <section class="card summary">
+                <div id="budgetValue" class="clickable-budget" title="Budget festlegen">
+                    <span>Budget</span>
+                    <strong id="budgetValueField">0,00 €</strong>
+                </div>
+                <div>
+                    <span>Ausgaben</span>
+                    <strong id="spentValue">0,00 €</strong>
+                </div>
+            </section>
+
+
+            <!-- Großer Aktions-Button -->
+            <button type="button" id="addBtn" class="primary">＋ Ausgabe erfassen</button>
+
+            <!-- Sektion: Verteilung (Einklappbar) -->
+	<!-- Vorher: <details open> -->
+	<!-- Nachher (standardmäßig geschlossen): -->
+	<section class="card stats-section">
+    	<details>
+       	 <summary class="section-title">
+            <div class="title-group">
+                <span class="list-toggle-icon">▶</span>
+                <h2>Verteilung</h2>
+            </div>
+        </summary>
+
+                    <div class="stats-container">
+                        <div id="statsChart" class="stats-chart">
+                            <span id="statsTotal">0,00 €</span>
+                        </div>
+                        <div id="statsList" class="stats-list">
+                            <!-- Wird dynamisch per JS befüllt -->
+                        </div>
+                    </div>
+                </details>
+            </section>
+
+            <!-- Sektion: Ausgabenliste (Einklappbar) -->
+<!-- Vorher: <details open> -->
+<!-- Nachher (standardmäßig geschlossen): -->
+<section class="card list-section">
+    <details>
+        <summary class="section-title">
+            <div class="title-group">
+                <span class="list-toggle-icon">▶</span>
+                <h2>Ausgaben</h2>
+            </div>
+        </summary>
+                    <div id="expenses">
+                        <!-- Wird dynamisch per JS befüllt -->
+                    </div>
+                </details>
+            </section>
+        </main>
+
+<!--      -->
+<!--   Dialog-Fenstern und Skript-Import. Einbetten der drei Pop-up-Fenster (<dialog>): 1. Budget, 2. Ausgaben (inklusive vordefinierter Kategorien), -->
+<!--   3. Einstellungen (Zahrtag & Daten-Backup) und schließlich verknüpfen wir der app.js  -->
+<!--      -->
+
+
+        <!-- Dialog: Budget festlegen -->
+        <dialog id="budgetDialog">
+            <div class="dialog-card">
+                <h2>Budget festlegen</h2>
+                <form id="budgetForm" method="dialog">
+                    <label for="budgetInput">Verfügbarer Betrag</label>
+                    <div class="money-input">
+                        <input type="text" id="budgetInput" inputmode="decimal" placeholder="0,00">
+                        <span>€</span>
+                    </div>
+                    <div class="dialog-actions">
+                        <button type="submit" value="cancel" class="secondary">Abbrechen</button>
+                        <button type="submit" value="save" class="primary small">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </dialog>
+
+        <!-- Dialog: Neue / Ausgabe bearbeiten -->
+        <dialog id="expenseDialog">
+            <div class="dialog-card">
+                <h2 id="expenseTitle">Neue Ausgabe</h2>
+                <form id="expenseForm" method="dialog">
+                    <input type="hidden" id="expenseId">
+                    
+                    <label for="expenseAmount">Betrag</label>
+                    <div class="money-input">
+                        <input type="text" id="expenseAmount" inputmode="decimal" placeholder="0,00" required>
+                        <span>€</span>
+                    </div>
+
+                    <label for="expenseCategory">Kategorie</label>
+                    <select id="expenseCategory">
+                        <option value="Lebensmittel">Lebensmittel</option>
+                        <option value="Haushalt">Haushalt</option>
+                        <option value="Drogerie">Drogerie</option>
+                        <option value="Auto">Auto</option>
+                        <option value="Freizeit">Freizeit</option>
+                        <option value="Kleidung">Kleidung</option>
+                        <option value="Gesundheit">Gesundheit</option>
+                        <option value="Sonstiges">Sonstiges</option>
+                    </select>
+
+                    <label for="expenseNote">Notiz <span>(optional)</span></label>
+                    <input type="text" id="expenseNote" placeholder="z. B. Wocheneinkauf">
+
+                    <!-- Vorher: <button type="submit" value="cancel" class="secondary">Abbrechen</button> -->
+                    <!-- Nachher (mit formnovalidate): -->
+                    <div class="dialog-actions">
+                        <button type="submit" value="cancel" class="secondary" formnovalidate>Abbrechen</button>
+                        <button type="submit" value="save" class="primary small">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </dialog>
+
+        <!-- Dialog: Einstellungen & Backup (Komplett von Inline-Styles befreit) -->
+        <dialog id="settingsDialog">
+            <div class="dialog-card">
+                <h2>Einstellungen</h2>
+                
+                <label for="startDayInput">📅 Monatswechsel (Zahltag)</label>
+                <p class="hint">An welchem Tag des Monats soll das neue Budget starten?</p>
+                <input type="number" id="startDayInput" min="1" max="28" value="24">
+
+                <h3 class="settings-spacing">💾 Daten-Backup</h3>
+                <!-- Deine optimierte Textversion -->
+                <p class="hint">Die Daten werden lokal auf diesem Gerät gespeichert. Kopiere die Daten in die Zwischenablage für deine Notizen-App (Export) oder spiele ein vorhandenes Backup von dort wieder ein (Import).</p>
+                
+                <div class="dropdown-wrapper">
+                    <select id="dataManagementDropdown">
+                        <option value="" disabled selected>Daten verwalten...</option>
+                        <option value="export">📤 Daten exportieren (Backup kopieren)</option>
+                        <option value="import">📥 Daten importieren (Backup einspielen)</option>
+                    </select>
+                </div>
+
+                <div class="dialog-actions settings-spacing">
+
+                    <form method="dialog">
+                        <button type="submit" class="primary small no-margin">Schließen</button>
+                    </form>
+                </div>
+
+            </div>
+        </dialog>
+
+        <!-- iOS-Style Bestätigungs-Dialog fürs Löschen -->
+        <dialog id="deleteConfirmDialog">
+            <div class="dialog-card alert-card">
+                <h2>Ausgabe löschen?</h2>
+                <p class="hint">Möchtest du diese Ausgabe wirklich unwiderruflich löschen?</p>
+                <div class="ios-actions">
+                    <button type="button" id="confirmDeleteBtn" class="ios-btn danger-btn">Ausgabe löschen</button>
+                    <button type="button" id="cancelDeleteBtn" class="ios-btn cancel-btn">Abbrechen</button>
+                </div>
+            </div>
+        </dialog>
+        <!-- iOS-Style Pop-up für den erfolgreichen Export -->
+        <dialog id="exportSuccessDialog">
+            <div class="dialog-card alert-card">
+                <h2>Erfolgreich kopiert!</h2>
+                <p class="hint">Dein Backup-Code wurde in deine Zwischenablage kopiert. Du kannst ihn jetzt in deine Notizen-App einfügen.</p>
+                <div class="ios-actions">
+                    <button type="button" id="closeExportSuccessBtn" class="ios-btn cancel-btn">OK</button>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- iOS-Style Pop-up für den Daten-Import -->
+        <dialog id="importDataDialog">
+            <div class="dialog-card alert-card">
+                <h2>Daten importieren</h2>
+                <p class="hint">Füge hier deinen kopierten Backup-Code aus deinen Notizen ein:</p>
+                
+                <div style="padding: 0 16px 20px 16px;">
+                    <input type="text" id="importCodeInput" placeholder="Backup-Code hier einfügen..." style="width:100%; border:1.5px solid #a39599; border-radius:12px; padding:12px; font-size:14px; outline:none; box-sizing:border-box;">
+                </div>
+
+                <div class="ios-actions">
+                    <!-- Vorher: class="ios-btn danger-btn" -->
+                    <!-- Nachher: class="ios-btn berry-btn" -->
+                    <button type="button" id="confirmImportBtn" class="ios-btn berry-btn">Importieren</button>
+                    <button type="button" id="cancelImportBtn" class="ios-btn cancel-btn">Abbrechen</button>
+                </div>
+            </div>
+        </dialog>
+
+    </div>
+
+<!-- Ende .app -->
+
+    <!-- Hauptprogramm einbinden -->
+    <script src="app.js"></script>
+</body>
+</html>
