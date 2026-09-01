@@ -1,16 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="de">
-<!--  -->
-<!-- Mein Budget V5 -->
-<!--  -->
 
-<!--  -->
+<head><meta charset="UTF-8">
 <!-- Metadaten vorbereiten, Manifest verknüpfen (damit die App installierbar bleibt) und CSS einbinden -->
 <!--  -->
-
-<head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mein Budget</title>
     
@@ -29,8 +22,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="#ffe0e9">
 </head>
+
 <body>
     <div class="app">
+<!--  -->
+<!--  -->
+<!-- Mein Budget V6
 <!--  -->
 <!--  Haupt-Dashboard mit der Budget- und Ausgabenübersicht. Strukturieren der oberen Anzeige mit dem Zeitraum, -->
 <!--  das große Hero-Feld für das Restbudget und die beiden einklappbaren Bereiche für die Verteilung (Grafik) -->
@@ -52,7 +49,20 @@
             <section class="card hero">
                 <span class="eyebrow">Noch verfügbar</span>
                 <div id="remaining" class="remaining">0,00 €</div>
-                <div id="daily" class="daily">0,00 € pro Tag</div>
+		<!-- Neues zweispaltiges Raster für Tag & Woche -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 12px; padding-bottom: 4px;">    
+     <!-- Linke Spalte (Tag): Rechtsbündig zur Trennlinie -->
+    <div style="border-right: 1px solid var(--border-color); text-align: right; padding-right: 50px;">
+        <span style="display: block; color: var(--text-muted); font-size: 13px;">Verfügbar pro Tag</span>
+        <strong id="daily" style="display: block; font-size: 17px; font-weight: 750; color: var(--text-berry); margin-top: 4px;">0,00 €</strong>
+    </div>
+    
+    <!-- Rechte Spalte (Woche): Linksbündig zur Trennlinie -->
+    <div style="padding-left: 50px; text-align: left;">
+        <span style="display: block; color: var(--text-muted); font-size: 13px;">Verfügbar pro Woche</span>
+        <strong id="weekly" style="display: block; font-size: 17px; font-weight: 750; color: var(--text-berry); margin-top: 4px;">0,00 €</strong>
+    </div>
+</div>
                 <div id="days" class="days">-- Tage verbleibend</div>
                 
                 <!-- Fortschrittsbalken -->
@@ -155,17 +165,20 @@
                         <span>€</span>
                     </div>
 
-                    <label for="expenseCategory">Kategorie</label>
-                    <select id="expenseCategory">
-                        <option value="Lebensmittel">Lebensmittel</option>
-                        <option value="Haushalt">Haushalt</option>
-                        <option value="Drogerie">Drogerie</option>
-                        <option value="Auto">Auto</option>
-                        <option value="Freizeit">Freizeit</option>
-                        <option value="Kleidung">Kleidung</option>
-                        <option value="Gesundheit">Gesundheit</option>
-                        <option value="Sonstiges">Sonstiges</option>
-                    </select>
+<label for="expenseCategory">📂 Kategorie</label>
+<div class="dropdown-wrapper">
+    <select id="expenseCategory">
+        <option value="Lebensmittel">🛒 Lebensmittel</option>
+        <option value="Drogerie">🧼 Drogerie</option>
+        <option value="Haushalt">🏡 Haushalt</option>
+        <option value="Kleidung">👗 Kleidung</option>
+        <option value="Freizeit">🛍️ Freizeit</option>
+        <option value="Auto">🚗 Auto</option>
+        <option value="Gesundheit">🩺 Gesundheit</option>
+        <option value="Tabakwaren">🚬 Tabakwaren</option>
+        <option value="Sonstiges">✨ Sonstiges</option>
+    </select>
+</div>
 
                     <label for="expenseNote">Notiz <span>(optional)</span></label>
                     <input type="text" id="expenseNote" placeholder="z. B. Wocheneinkauf">
@@ -185,13 +198,27 @@
   
       <dialog id="settingsDialog">
             <div class="dialog-card">
-                <h2>Einstellungen</h2>
-                
-                <label for="startDayInput">📅 Monatswechsel (Zahltag)</label>
-                <p class="hint">An welchem Tag des Monats soll das neue Budget starten?</p>
-                <input type="number" id="startDayInput" min="1" max="28" value="24">
+<!-- ==========================================
+     EINSTELLUNGEN MODAL (DESIGN DROPDOWN NEU)
+     ========================================== -->
+<h2>Einstellungen</h2>
 
-                <h3 class="settings-spacing">💾 Daten-Backup</h3>
+<label for="themeSelect">🎨 Design</label>
+<div class="dropdown-wrapper margin-bottom-sm">
+    <select id="themeSelect">
+        <option value="auto">System-Standard</option>
+        <option value="light">Helles Design</option>
+        <option value="dark">Dunkles Design</option>
+    </select>
+</div>
+
+📅 Monatswechsel (Zahltag)
+<p class="hint">An welchem Tag des Monats soll das neue Budget starten?</p>
+<input type="number" id="startDayInput" min="1" max="28" value="24">
+
+<h3 class="settings-spacing">💾 Daten-Backup</h3>
+
+<!-- Hier folgt Backup-Code (Exportieren / Importieren) -->
                 
                 <!-- Grüner Erfolgs-Hinweis direkt im Dialog -->
                 <p id="exportToast" class="hint" style="color: #34c759; font-weight: 600; display: none;">✅ Backup-Code wurde kopiert!</p>

@@ -1,24 +1,27 @@
-// 
+//     V6 -Dark Mode	
 //     Initialisierung & Daten-Speicher
 // 
 
-const KEY = "meinBudget_v5";
+const KEY = "meinBudget_v6";
 let state = loadState();
 
 // DOM-Elemente einmalig cachen für maximale Render-Performance
 const DOM = {
-    periodLabel: null, remaining: null, daily: null, days: null,
+periodLabel: null, remaining: null, daily: null, weekly: null, days: null,
     budgetValue: null, spentValue: null, progressBar: null,
     statsList: null, statsChart: null, statsTotal: null,
     expensesList: null, budgetInput: null, budgetDialog: null,
     budgetForm: null, expenseForm: null, expenseAmount: null,
     expenseId: null, expenseCategory: null, expenseNote: null,
     expenseDialog: null, expenseTitle: null, settingsDialog: null,
-    startDayInput: null, settingsBtn: null, directExportBtn: null, directImportBtn: null, exportToast: null,
- exportSuccessDialog: null, closeExportSuccessBtn: null,
+    startDayInput: null, settingsBtn: null, directExportBtn: null, 
+    directImportBtn: null, exportToast: null,
+    
+    themeSelect: null, // <-- DIESE ZEILE HIER NEU EINFÜGEN!
+    
+    exportSuccessDialog: null, closeExportSuccessBtn: null,
     importDataDialog: null, importCodeInput: null, confirmImportBtn: null, cancelImportBtn: null,
-    addBtn: null,deleteConfirmDialog: null, confirmDeleteBtn: null, cancelDeleteBtn: null,
-
+    addBtn: null, deleteConfirmDialog: null, confirmDeleteBtn: null, cancelDeleteBtn: null,
 };
 
 // Hilfsfunktion zur einfachen Element-Zuweisung
@@ -29,19 +32,21 @@ const $ = id => document.getElementById(id);
    ========================================================================= */
 function loadState() {
     try {
-        for (const version of ["_v3", "_v2", "_v1"]) {
-            const saved = JSON.parse(localStorage.getItem(KEY.replace("_v3", version)) || "null");
+        for (const version of ["_v5", "_v3", "_v2", "_v1"]) {
+            const saved = JSON.parse(localStorage.getItem(KEY.replace("_v5", version)) || "null");
             if (saved && saved.budgets && Array.isArray(saved.expenses)) {
                 if (!saved.startDay) saved.startDay = 24;
-                return saved;
+                if (!saved.theme) saved.theme = "auto"; // Setzt das Theme, falls aus alter Version geladen
+                return saved; // Hier wird die Funktion beendet, WENN Daten gefunden wurden
             }
         }
     } catch (e) {
         console.error("Fehler beim Laden der Daten:", e);
     }
-    return { period: "month", startDay: 24, budgets: {}, expenses: [] };
+    
+    // Fallback: Wenn KEINE Daten im Speicher waren, wird dieses Objekt zurückgegeben
+    return { period: "month", startDay: 24, theme: "auto", budgets: {}, expenses: [] };
 }
-
 function save() {
     try {
         localStorage.setItem(KEY, JSON.stringify(state));
@@ -49,6 +54,27 @@ function save() {
     } catch (e) {
         alert("Die Daten konnten auf diesem Gerät nicht gespeichert werden.");
         return false;
+    }
+}
+
+/* ==========================================================================
+   THEME-LOGIK (DARK MODE)
+   ========================================================================= */
+function applyTheme() {
+    const theme = state.theme || "auto";
+    
+    // Setzt das Dropdown-Feld auf den aktuellen Wert
+    if (DOM.themeSelect) DOM.themeSelect.value = theme;
+
+    // Schaltet das data-theme Attribut im HTML um
+    if (theme === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+    } else if (theme === "light") {
+        document.documentElement.setAttribute("data-theme", "light");
+    } else {
+        // "auto": Prüft live die Systemeinstellung deines Smartphones/Browsers
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
     }
 }
 
@@ -119,17 +145,23 @@ function render() {
 
     // Textfelder befüllen
     if (DOM.periodLabel) DOM.periodLabel.textContent = `Zeitraum: ${p.label}`;
-    if (DOM.daily) DOM.daily.textContent = `${euro(Math.max(0, remaining / days))} pro Tag`;
+	if (DOM.daily) DOM.daily.textContent = euro(Math.max(0, remaining / days));
+
+	if (DOM.weekly) {
+    	const weeksLeft = Math.min(7, days);
+    	DOM.weekly.textContent = euro(Math.max(0, (remaining / days) * weeksLeft));
+	}
     if (DOM.days) DOM.days.textContent = `${days} ${days === 1 ? "Tag" : "Tage"} verbleibend`;
 // Schreibt den Wert ins Textfeld, ohne die Klick-Fläche zu beschädigen
 const budgetField = document.getElementById("budgetValueField");
 if (budgetField) budgetField.textContent = euro(budget);
     if (DOM.spentValue) DOM.spentValue.textContent = euro(spent);
 
-    if (DOM.remaining) {
-        DOM.remaining.textContent = euro(remaining);
-        DOM.remaining.style.color = remaining < 0 ? "#ff3b30" : (remaining <= 100 && budget > 0 ? "#ff9500" : "#2b2024");
-    }
+if (DOM.remaining) {
+    DOM.remaining.textContent = euro(remaining);
+    // Nutzt im Normalfall die CSS-Variable statt des harten Farbcodes
+    DOM.remaining.style.color = remaining < 0 ? "#ff3b30" : (remaining <= 100 && budget > 0 ? "#ff9500" : "var(--text-berry)");
+}
 
     // Fortschrittsbalken aktualisieren
     if (DOM.progressBar) {
@@ -243,10 +275,7 @@ function deleteExpense(id) {
 }
 
 /* ==========================================================================
-   6. INITIALISIERUNG & EVENT LISTENERS
-   ========================================================================== */
-/* ==========================================================================
-   6. INITIALISIERUNG & EVENT LISTENERS
+   6. INITIALISIERUNG & EVENT LISTENERS (TEIL 1)
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Cache befüllen (Verknüpft IDs aus HTML mit dem DOM-Objekt)
@@ -255,6 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     render();
+    applyTheme(); // Lädt das gespeicherte oder System-Theme direkt beim Start
 
     // Event-Klicks für feste Buttons
     DOM.budgetValue?.addEventListener("click", openBudget);
@@ -264,7 +294,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (DOM.expenseId) DOM.expenseId.value = "";
         if (DOM.expenseAmount) DOM.expenseAmount.value = "";
         if (DOM.expenseNote) DOM.expenseNote.value = "";
-        if (DOM.expenseCategory) DOM.expenseCategory.value = "Lebensmittel";
+        if (DOM.expenseCategory) DOM.expenseCategory.value = "Lebensmittel"; //Default-Wert bei den Kategorien
         DOM.expenseDialog?.showModal();
         DOM.expenseAmount?.focus();
     });
@@ -272,6 +302,7 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.settingsBtn?.addEventListener("click", () => {
         DOM.settingsDialog?.showModal();
         if (DOM.startDayInput) DOM.startDayInput.value = state.startDay || 24;
+        if (DOM.themeSelect) DOM.themeSelect.value = state.theme || "auto";
     });
 
     DOM.startDayInput?.addEventListener("change", (e) => {
@@ -280,16 +311,30 @@ document.addEventListener("DOMContentLoaded", () => {
         if (save()) render();
     });
 
-    // Formular-Absendungen (Submits)
+    // Wechselt das Design, wenn der Nutzer das Dropdown ändert
+    DOM.themeSelect?.addEventListener("change", (e) => {
+        state.theme = e.target.value;
+        if (save()) applyTheme();
+    });
+
+    // Schaltet das Design live um, wenn das Smartphone auf Darkmode wechselt (nur bei Option "Auto")
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+        if (state.theme === "auto") applyTheme();
+    });
+
+    // Formular-Absendungen (Submits) mit erzwungenem Schließen
     DOM.budgetForm?.addEventListener("submit", (e) => {
+        e.preventDefault(); 
         if (e.submitter?.value === "save" && DOM.budgetInput) {
             const p = getPeriod();
             state.budgets[p.key] = Number(DOM.budgetInput.value.trim().replace(",", ".")) || 0;
             if (save()) render();
         }
+        DOM.budgetDialog?.close();
     });
-
+    // Formular für Ausgaben mit erzwungenem Schließen
     DOM.expenseForm?.addEventListener("submit", (e) => {
+        e.preventDefault(); 
         if (e.submitter?.value === "save" && DOM.expenseAmount) {
             const amount = Number(DOM.expenseAmount.value.trim().replace(",", "."));
             if (!amount || isNaN(amount)) return;
@@ -298,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const expense = {
                 id: id || newId(),
                 amount,
-                category: DOM.expenseCategory?.value || "Sonstiges",
+                category: DOM.expenseCategory?.value || "Sonstiges", //Standard-Kategorie wird vergeben, falls das Feld mal leer sein sollte
                 note: DOM.expenseNote?.value.trim() || "",
                 date: id ? state.expenses.find(x => x.id === id)?.date || dateKey(new Date()) : dateKey(new Date())
             };
@@ -311,6 +356,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (save()) render();
         }
+        DOM.expenseDialog?.close();
     });
 
     // Event-Delegation für dynamisch erstellte Listen-Knöpfe
@@ -338,7 +384,7 @@ document.addEventListener("DOMContentLoaded", () => {
         expenseIdToDelete = null;
     });
 
-    // Startet den Export direkt über einen echten Button-Klick (Smartphone-sicher!)
+    // Startet den Export direkt über einen Button-Klick
     DOM.directExportBtn?.addEventListener("click", () => {
         const text = JSON.stringify(state);
         navigator.clipboard.writeText(text)
@@ -353,7 +399,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     });
 
-    // Öffnet den Import-Dialog direkt über den Button-Klick
+    // Öffnet den Import-Dialog
     DOM.directImportBtn?.addEventListener("click", () => {
         if (DOM.importCodeInput) DOM.importCodeInput.value = "";
         DOM.importDataDialog?.showModal();
@@ -364,7 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
         DOM.importDataDialog?.close();
     });
 
-    // Bestätigt den Import und schließt alle Masken
+    // Bestätigt den Import
     DOM.confirmImportBtn?.addEventListener("click", () => {
         const raw = DOM.importCodeInput?.value?.trim();
         if (raw) {
@@ -376,7 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (save()) { 
                         render(); 
                         DOM.importDataDialog?.close();
-                        DOM.settingsDialog?.close(); // Schließt das Hauptmenü für besseren Komfort direkt mit
+                        DOM.settingsDialog?.close(); 
                     }
                 } else { alert("❌ Falsches Datenformat."); }
             } catch { alert("❌ Ungültiger Code."); }
@@ -389,13 +435,13 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.settingsDialog?.addEventListener("close", () => {
         if (DOM.exportToast) DOM.exportToast.style.display = "none";
     });
-});
+}); // <--- SCHLIESST DOMCONTENTLOADED SAUBER AB!
 
 /* ==========================================================================
    7. SERVICE WORKER
    ========================================================================== */
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js?v=4").catch(() => {});
+        navigator.serviceWorker.register("service-worker.js?v=10").catch(() => {});
     });
 }

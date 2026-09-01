@@ -1,4 +1,6 @@
-const CACHE_NAME = "Mein-Budget-V9";
+// V10 - Dark Mode
+
+const CACHE_NAME = "Mein-Budget-V10";
 const ASSETS = [
     "./",
     "./index.html",
