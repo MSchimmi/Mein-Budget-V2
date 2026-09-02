@@ -201,7 +201,7 @@
 <!-- ==========================================
      EINSTELLUNGEN MODAL (DESIGN DROPDOWN NEU)
      ========================================== -->
-<h2>Einstellungen</h2>
+<h2 tabindex="-1" autofocus>Einstellungen</h2>
 
 <label for="themeSelect">🎨 Design</label>
 <div class="dropdown-wrapper margin-bottom-sm">
@@ -221,8 +221,9 @@
 <!-- Hier folgt Backup-Code (Exportieren / Importieren) -->
                 
                 <!-- Grüner Erfolgs-Hinweis direkt im Dialog -->
-                <p id="exportToast" class="hint" style="color: #34c759; font-weight: 600; display: none;">✅ Backup-Code wurde kopiert!</p>
-                
+                <p id="exportToast" class="hint" style="color: #34c759; font-weight: 600; display: none;">✅ Backup in die Zwischenablage kopiert! Speichere die Daten jetzt in deiner Notizen-App.</p>
+
+               
                 <p class="hint">Die Daten werden lokal auf diesem Gerät gespeichert. Nutze die Schaltflächen für dein Backup.</p>
                 
                 <!-- Zwei elegante Schaltflächen im nativen App-Look nebeneinander -->
@@ -256,8 +257,8 @@
         <dialog id="importDataDialog">
             <div class="dialog-card alert-card">
                 <h2>Daten importieren</h2>
-                <p class="hint">Füge hier deinen kopierten Backup-Code aus deinen Notizen ein:</p>
-                
+                <p class="hint">Füge hier den kopierten Backup-Code aus deiner Notizen-App ein:</p>
+
                 <div style="padding: 0 16px 20px 16px;">
                     <input type="text" id="importCodeInput" placeholder="Backup-Code hier einfügen...">
                 </div>

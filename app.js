@@ -45,7 +45,7 @@ function loadState() {
     }
     
     // Fallback: Wenn KEINE Daten im Speicher waren, wird dieses Objekt zurückgegeben
-    return { period: "month", startDay: 24, theme: "auto", budgets: {}, expenses: [] };
+   return { period: "month", startDay: 24, theme: "light", budgets: {}, expenses: [] }; // Standard Helles Design
 }
 function save() {
     try {
@@ -299,11 +299,11 @@ document.addEventListener("DOMContentLoaded", () => {
         DOM.expenseAmount?.focus();
     });
 
-    DOM.settingsBtn?.addEventListener("click", () => {
-        DOM.settingsDialog?.showModal();
-        if (DOM.startDayInput) DOM.startDayInput.value = state.startDay || 24;
-        if (DOM.themeSelect) DOM.themeSelect.value = state.theme || "auto";
-    });
+DOM.settingsBtn?.addEventListener("click", () => {
+    DOM.settingsDialog?.showModal();
+    if (DOM.startDayInput) DOM.startDayInput.value = state.startDay || 24;
+    if (DOM.themeSelect) DOM.themeSelect.value = state.theme || "light"; // Setzt das Menü standardmäßig auf Hell
+});
 
     DOM.startDayInput?.addEventListener("change", (e) => {
         let val = parseInt(e.target.value, 10) || 24;
@@ -385,19 +385,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Startet den Export direkt über einen Button-Klick
-    DOM.directExportBtn?.addEventListener("click", () => {
-        const text = JSON.stringify(state);
-        navigator.clipboard.writeText(text)
-            .then(() => {
-                if (DOM.exportToast) {
-                    DOM.exportToast.style.display = "block";
-                    setTimeout(() => { if (DOM.exportToast) DOM.exportToast.style.display = "none"; }, 3000);
-                }
-            })
-            .catch(() => {
-                alert(`Automatisches Kopieren fehlgeschlagen. Dein Code:\n\n${text}`);
-            });
-    });
+// Startet den Export direkt über einen Button-Klick
+DOM.directExportBtn?.addEventListener("click", () => {
+    const text = JSON.stringify(state);
+    navigator.clipboard.writeText(text)
+        .then(() => {
+            if (DOM.exportToast) {
+                DOM.exportToast.style.display = "block";
+                // Auf 4500ms erhöht, damit der Anwender den Hinweis in Ruhe lesen kann
+                setTimeout(() => { if (DOM.exportToast) DOM.exportToast.style.display = "none"; }, 4500);
+            }
+        })
+        .catch(() => {
+            alert(`Kopieren fehlgeschlagen! Bitte markiere und kopiere den folgenden Code manuell für deine Notizen-App:\n\n${text}`);
+        });
+});
+
 
     // Öffnet den Import-Dialog
     DOM.directImportBtn?.addEventListener("click", () => {
@@ -442,6 +445,6 @@ document.addEventListener("DOMContentLoaded", () => {
    ========================================================================== */
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js?v=10").catch(() => {});
+        navigator.serviceWorker.register("service-worker.js?v=11").catch(() => {});
     });
 }
