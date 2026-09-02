@@ -4,7 +4,7 @@
 <head><meta charset="UTF-8">
 <!-- Metadaten vorbereiten, Manifest verknüpfen (damit die App installierbar bleibt) und CSS einbinden -->
 <!--  -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mein Budget</title>
     
     <!-- PWA & Styling Links -->
@@ -166,23 +166,12 @@
                     </div>
 
 <label for="expenseCategory">📂 Kategorie</label>
-<div class="dropdown-wrapper">
-    <select id="expenseCategory">
-        <option value="Lebensmittel">🛒 Lebensmittel</option>
-        <option value="Drogerie">🧼 Drogerie</option>
-        <option value="Haushalt">🏡 Haushalt</option>
-        <option value="Kleidung">👗 Kleidung</option>
-        <option value="Freizeit">🛍️ Freizeit</option>
-        <option value="Auto">🚗 Auto</option>
-        <option value="Gesundheit">🩺 Gesundheit</option>
-        <option value="Tabakwaren">🚬 Tabakwaren</option>
-        <option value="Sonstiges">✨ Sonstiges</option>
-    </select>
-</div>
+<select id="expenseCategory">
+    <!-- Wird automatisch und dynamisch durch app.js befüllt -->
+</select>
 
                     <label for="expenseNote">Notiz <span>(optional)</span></label>
-                    <input type="text" id="expenseNote" placeholder="z. B. Wocheneinkauf">
-
+                    <input type="text" id="expenseNote" autocomplete="off" autocorrect="off" autocapitalize="none">
                     <!-- Vorher: <button type="submit" value="cancel" class="secondary">Abbrechen</button> -->
                     <!-- Nachher (mit formnovalidate): -->
                     <div class="dialog-actions">
@@ -211,10 +200,25 @@
         <option value="dark">Dunkles Design</option>
     </select>
 </div>
+<!-- NEU: Eigene Kategorien verwalten -->
+<!-- Eigene Kategorien verwalten -->
+<label>🏷️ Kategorien verwalten</label>
+<div id="settingsCategoryList" style="max-height: 120px; overflow-y: auto; border: 1px solid #dcdcd8; border-radius: 8px; padding: 6px; margin-bottom: 8px;">
+    <!-- Wird automatisch befüllt -->
+</div>
 
-📅 Monatswechsel (Zahltag)
-<p class="hint">An welchem Tag des Monats soll das neue Budget starten?</p>
-<input type="number" id="startDayInput" min="1" max="28" value="24">
+<div style="display: flex; gap: 6px; margin-bottom: 15px;">
+    <!-- KORREKTUR: ID hinzugefügt -->
+    <input type="text" id="newCategoryInput" placeholder="z. B. 🍕 Lieferdienst" autocomplete="off" autocorrect="off" autocapitalize="none" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #96878b;">
+    <!-- KORREKTUR: ID hinzugefügt -->
+    <button type="button" id="addCategoryBtn" style="padding: 8px 12px; border-radius: 6px; background: #2b2024; color: white; border: 0;">＋</button>
+</div>
+
+
+<!-- Wir packen die Überschrift in ein klares Klassen-Element -->
+<span class="settings-headline">📅 Monatswechsel (Zahltag)</span>
+<p class="input-help">An welchem Tag des Monats soll das neue Budget starten?</p>
+<input type="number" id="startDayInput" value="24">
 
 <h3 class="settings-spacing">💾 Daten-Backup</h3>
 
@@ -252,6 +256,15 @@
                 </div>
             </div>
         </dialog>
+<!-- NEU: Sicherheitsabfrage für das Löschen von Kategorien -->
+<dialog id="deleteCategoryDialog" style="border: 0; border-radius: 12px; padding: 16px; background: var(--card-bg, #fff); box-shadow: 0 8px 30px rgba(0,0,0,0.2); width: min(90vw, 360px); text-align: center;">
+    <h3 style="margin-top: 5px; color: var(--text-berry); font-size: 16px; font-weight: 700;">⚠️ Kategorie aktiv!</h3>
+    <p id="deleteCategoryWarningText" style="font-size: 13px; color: #5e5e57; line-height: 1.4; margin: 10px 0 16px;"></p>
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" id="cancelDeleteCatBtn" style="padding: 8px 12px; border-radius: 6px; background: #e8e8e4; border: 0; font-size: 14px; cursor: pointer;">Abbrechen</button>
+        <button type="button" id="confirmDeleteCatBtn" style="padding: 8px 12px; border-radius: 6px; background: #ff3b30; color: white; border: 0; font-size: 14px; font-weight: 600; cursor: pointer;">Trotzdem löschen</button>
+    </div>
+</dialog>
 
         <!-- iOS-Style Pop-up für den Daten-Import -->
         <dialog id="importDataDialog">
@@ -276,4 +289,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-

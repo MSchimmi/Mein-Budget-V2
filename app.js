@@ -1,13 +1,17 @@
-//     V6 -Dark Mode	
+//     V6 - Dark Mode - Sicherheitsabfrage Kategorien Fix
 //     Initialisierung & Daten-Speicher
 // 
 
 const KEY = "meinBudget_v6";
 let state = loadState();
 
+// Globaler Merker für die Dialoge
+let expenseIdToDelete = null;
+let catIndexToDelete = null; // Merker für das Kategorie-Lösch-Popup
+
 // DOM-Elemente einmalig cachen für maximale Render-Performance
 const DOM = {
-periodLabel: null, remaining: null, daily: null, weekly: null, days: null,
+    periodLabel: null, remaining: null, daily: null, weekly: null, days: null,
     budgetValue: null, spentValue: null, progressBar: null,
     statsList: null, statsChart: null, statsTotal: null,
     expensesList: null, budgetInput: null, budgetDialog: null,
@@ -16,37 +20,82 @@ periodLabel: null, remaining: null, daily: null, weekly: null, days: null,
     expenseDialog: null, expenseTitle: null, settingsDialog: null,
     startDayInput: null, settingsBtn: null, directExportBtn: null, 
     directImportBtn: null, exportToast: null,
-    
-    themeSelect: null, // <-- DIESE ZEILE HIER NEU EINFÜGEN!
-    
+    themeSelect: null,
     exportSuccessDialog: null, closeExportSuccessBtn: null,
     importDataDialog: null, importCodeInput: null, confirmImportBtn: null, cancelImportBtn: null,
     addBtn: null, deleteConfirmDialog: null, confirmDeleteBtn: null, cancelDeleteBtn: null,
+    
+    // Zuweisungen für das Kategorielayout im HTML
+    settingsCategoryList: null,
+    newCategoryInput: null,
+    addCategoryBtn: null,
+    
+    // Neue Variablen für die Sicherheitsabfrage
+    deleteCategoryDialog: null,
+    deleteCategoryWarningText: null,
+    cancelDeleteCatBtn: null,
+    confirmDeleteCatBtn: null
 };
 
 // Hilfsfunktion zur einfachen Element-Zuweisung
 const $ = id => document.getElementById(id);
 
+// Fallback-Emoji-Liste, falls der Nutzer ein Wort ohne Emoji eingibt
+const DEFAULT_EMOJIS = {
+    "Lebensmittel": "🛒", "Drogerie": "🧼", "Haushalt": "🏡", 
+    "Kleidung": "👗", "Freizeit": "🛍", "Auto": "🚗", 
+    "Gesundheit": "🩺", "Sonstiges": "✨"
+};
+
+function getCategoryEmoji(catName) {
+    const emojiRegex = /(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/;
+    if (emojiRegex.test(catName)) return ""; 
+    return DEFAULT_EMOJIS[catName] || "🏷️"; 
+}
+
 /* ==========================================================================
-   1. DATEN LADEN & INITIALISIEREN
+   1. DATEN LADEN & INITIALISIEREN (ABGESICHERT)
    ========================================================================= */
 function loadState() {
+    const defaultCategories = ["Lebensmittel", "Drogerie", "Haushalt", "Kleidung", "Freizeit", "Auto", "Gesundheit", "Tabakwaren", "Sonstiges"];
     try {
+        let currentSaved = localStorage.getItem(KEY);
+        if (currentSaved) {
+            let parsed = JSON.parse(currentSaved);
+            if (parsed && parsed.budgets && Array.isArray(parsed.expenses)) {
+                if (!parsed.startDay) parsed.startDay = 24;
+                if (!parsed.theme) parsed.theme = "light";
+                if (!parsed.categories || !Array.isArray(parsed.categories)) parsed.categories = defaultCategories;
+                return parsed;
+            }
+        }
+
         for (const version of ["_v5", "_v3", "_v2", "_v1"]) {
-            const saved = JSON.parse(localStorage.getItem(KEY.replace("_v5", version)) || "null");
-            if (saved && saved.budgets && Array.isArray(saved.expenses)) {
-                if (!saved.startDay) saved.startDay = 24;
-                if (!saved.theme) saved.theme = "auto"; // Setzt das Theme, falls aus alter Version geladen
-                return saved; // Hier wird die Funktion beendet, WENN Daten gefunden wurden
+            const savedData = localStorage.getItem(KEY.replace("_v5", version));
+            if (savedData) {
+                const parsed = JSON.parse(savedData);
+                if (parsed && parsed.budgets && Array.isArray(parsed.expenses)) {
+                    if (!parsed.startDay) parsed.startDay = 24;
+                    if (!parsed.theme) parsed.theme = "light";
+                    parsed.categories = defaultCategories;
+                    return parsed;
+                }
             }
         }
     } catch (e) {
         console.error("Fehler beim Laden der Daten:", e);
     }
     
-    // Fallback: Wenn KEINE Daten im Speicher waren, wird dieses Objekt zurückgegeben
-   return { period: "month", startDay: 24, theme: "light", budgets: {}, expenses: [] }; // Standard Helles Design
+    return { 
+        period: "month", 
+        startDay: 24, 
+        theme: "light", 
+        budgets: {}, 
+        expenses: [],
+        categories: defaultCategories
+    };
 }
+
 function save() {
     try {
         localStorage.setItem(KEY, JSON.stringify(state));
@@ -61,29 +110,20 @@ function save() {
    THEME-LOGIK (DARK MODE)
    ========================================================================= */
 function applyTheme() {
-    const theme = state.theme || "auto";
-    
-    // Setzt das Dropdown-Feld auf den aktuellen Wert
+    const theme = state.theme || "light";
     if (DOM.themeSelect) DOM.themeSelect.value = theme;
 
-    // Schaltet das data-theme Attribut im HTML um
     if (theme === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
     } else if (theme === "light") {
         document.documentElement.setAttribute("data-theme", "light");
     } else {
-        // "auto": Prüft live die Systemeinstellung deines Smartphones/Browsers
         const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
     }
 }
-
-//
-//   Zeitraums- und Datumslogik
-//
-
 /* ==========================================================================
-   2. HILFSFUNKTIONEN & FORMATIERUNG
+   2. HILFSFUNKTIONEN & ZEITRAUM-BERECHNUNG
    ========================================================================= */
 const euro = n => new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0);
 const pad = n => String(n).padStart(2, "0");
@@ -99,9 +139,6 @@ function nextWeekday(d) {
     return x;
 }
 
-/* ==========================================================================
-   3. ZEITRAUM (Dynamisch basierend auf individuellem Zahltag)
-   ========================================================================== */
 function getPeriod() {
     const now = new Date();
     const startDay = state?.startDay || 24;
@@ -125,14 +162,72 @@ function getPeriod() {
 function inPeriod(expense, p) {
     if (!expense.date) return false;
     const d = new Date(expense.date);
-    d.setHours(0, 0, 0, 0); // Verhindert Zeitzonen-Fehler
+    d.setHours(0, 0, 0, 0); 
     return d >= p.start && d <= p.end;
 }
-//
-//   Die Render-Funktion (UI-Aufbau & Statistik)
-//
+
 /* ==========================================================================
-   4. ANZEIGE (RENDER-FUNKTION)
+   3. DYNAMISCHE KATEGORIE-LISTEN (RENDER-LOGIK)
+   ========================================================================= */
+function renderCategorySelect() {
+    if (!DOM.expenseCategory) return;
+    const categories = state.categories || ["Lebensmittel", "Drogerie", "Haushalt", "Kleidung", "Freizeit", "Auto", "Gesundheit", "Tabakwaren", "Sonstiges"];
+    
+    DOM.expenseCategory.innerHTML = "";
+    DOM.expenseCategory.innerHTML = categories.map(cat => {
+        const emoji = getCategoryEmoji(cat);
+        const displayName = emoji ? `${emoji} ${cat}` : cat;
+        return `<option value="${esc(cat)}">${esc(displayName)}</option>`;
+    }).join("");
+}
+function renderSettingsCategories() {
+    if (!DOM.settingsCategoryList) return;
+    const categories = state.categories || ["Lebensmittel", "Drogerie", "Haushalt", "Kleidung", "Freizeit", "Auto", "Gesundheit", "Tabakwaren", "Sonstiges"];
+    
+    DOM.settingsCategoryList.innerHTML = categories.map((cat, index) => {
+        const emoji = getCategoryEmoji(cat);
+        const displayName = emoji ? `${emoji} ${cat}` : cat;
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; border-bottom: 0.5px solid #dcdcd8; font-size: 15px;">
+                <span>${esc(displayName)}</span>
+                <button type="button" class="delete-cat-btn" data-index="${index}" style="background: transparent; border: 0; color: #ff3b30; cursor: pointer; font-size: 14px; padding: 2px 6px;">✕</button>
+            </div>
+        `;
+    }).join("");
+
+    DOM.settingsCategoryList.querySelectorAll(".delete-cat-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const index = parseInt(e.target.getAttribute("data-index"), 10);
+            if (!state.categories || !state.categories[index]) return;
+            
+            const catName = state.categories[index];
+            const p = getPeriod();
+            
+            // Prüft blitzschnell, ob es im aktuellen Monat Ausgaben mit dieser Kategorie gibt
+            const hasActiveExpenses = state.expenses.some(x => x.category === catName && inPeriod(x, p));
+
+            if (hasActiveExpenses) {
+                catIndexToDelete = index; // Merker für finalen Lösch-Knopf setzen
+                
+                if (DOM.deleteCategoryWarningText) {
+                    DOM.deleteCategoryWarningText.innerHTML = `Du hast in diesem Zeitraum bereits Ausgaben auf die Kategorie <strong>${esc(catName)}</strong> gebucht.<br><br>Möchtest du sie trotzdem aus der zukünftigen Auswahl entfernen?`;
+                }
+                DOM.deleteCategoryDialog?.showModal();
+            } else {
+                // Keine Ausgaben gefunden? Direkt löschen!
+                state.categories.splice(index, 1);
+                if (save()) {
+                    renderSettingsCategories();
+                    renderCategorySelect();
+                    render();
+                }
+            }
+        });
+    });
+}
+
+/* ==========================================================================
+   4. ANZEIGE (HAUPT-RENDER-FUNKTION FÜR UI & STATISTIK)
    ========================================================================== */
 function render() {
     const p = getPeriod();
@@ -143,35 +238,31 @@ function render() {
     const now = new Date();
     const days = Math.max(1, Math.ceil((p.end - now) / 86400000));
 
-    // Textfelder befüllen
     if (DOM.periodLabel) DOM.periodLabel.textContent = `Zeitraum: ${p.label}`;
-	if (DOM.daily) DOM.daily.textContent = euro(Math.max(0, remaining / days));
+    if (DOM.daily) DOM.daily.textContent = euro(Math.max(0, remaining / days));
 
-	if (DOM.weekly) {
-    	const weeksLeft = Math.min(7, days);
-    	DOM.weekly.textContent = euro(Math.max(0, (remaining / days) * weeksLeft));
-	}
+    if (DOM.weekly) {
+        const weeksLeft = Math.min(7, days);
+        DOM.weekly.textContent = euro(Math.max(0, (remaining / days) * weeksLeft));
+    }
     if (DOM.days) DOM.days.textContent = `${days} ${days === 1 ? "Tag" : "Tage"} verbleibend`;
-// Schreibt den Wert ins Textfeld, ohne die Klick-Fläche zu beschädigen
-const budgetField = document.getElementById("budgetValueField");
-if (budgetField) budgetField.textContent = euro(budget);
+
+    const budgetField = document.getElementById("budgetValueField");
+    if (budgetField) budgetField.textContent = euro(budget);
     if (DOM.spentValue) DOM.spentValue.textContent = euro(spent);
 
-if (DOM.remaining) {
-    DOM.remaining.textContent = euro(remaining);
-    // Nutzt im Normalfall die CSS-Variable statt des harten Farbcodes
-    DOM.remaining.style.color = remaining < 0 ? "#ff3b30" : (remaining <= 100 && budget > 0 ? "#ff9500" : "var(--text-berry)");
-}
+    if (DOM.remaining) {
+        DOM.remaining.textContent = euro(remaining);
+        DOM.remaining.style.color = remaining < 0 ? "#ff3b30" : (remaining <= 100 && budget > 0 ? "#ff9500" : "var(--text-berry)");
+    }
 
-    // Fortschrittsbalken aktualisieren
     if (DOM.progressBar) {
         DOM.progressBar.style.width = budget ? `${Math.min(100, Math.max(0, (spent / budget) * 100))}%` : "0%";
         DOM.progressBar.classList.remove("warning", "danger");
         if (remaining < 0) DOM.progressBar.classList.add("danger");
         else if (remaining <= 100 && budget > 0) DOM.progressBar.classList.add("warning");
     }
-
-    // Statistik berechnen & rendern
+    // Ringdiagramm & Statistik berechnen
     if (DOM.statsList && DOM.statsChart && DOM.statsTotal) {
         if (expenses.length === 0 || spent <= 0) {
             DOM.statsChart.style.background = "#e8e8e4";
@@ -201,19 +292,23 @@ if (DOM.remaining) {
             });
 
             DOM.statsChart.style.background = `conic-gradient(${gradientSegments.join(", ")})`;
-            DOM.statsList.innerHTML = sortedCats.map((cat, i) => `
-                <div class="stat-item">
-                    <div class="stat-row">
-                        <span class="stat-name">${esc(cat.name)} <span style="color:#777770;font-weight:400;">(${Math.round(cat.percent)}%)</span></span>
-                        <span class="stat-value">${euro(cat.total)}</span>
+            DOM.statsList.innerHTML = sortedCats.map((cat, i) => {
+                const emoji = getCategoryEmoji(cat.name);
+                const fullCatName = emoji ? `${emoji} ${cat.name}` : cat.name;
+                return `
+                    <div class="stat-item">
+                        <div class="stat-row">
+                            <span class="stat-name">${esc(fullCatName)} <span style="color:#777770;font-weight:400;">(${Math.round(cat.percent)}%)</span></span>
+                            <span class="stat-value">${euro(cat.total)}</span>
+                        </div>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: ${cat.percent}%; background: ${colors[i % colors.length]};"></div></div>
                     </div>
-                    <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: ${cat.percent}%; background: ${colors[i % colors.length]};"></div></div>
-                </div>
-            `).join("");
+                `;
+            }).join("");
         }
     }
 
-    // Ausgabenliste rendern
+    // Liste der Ausgaben rendern
     if (DOM.expensesList) {
         if (expenses.length === 0) {
             DOM.expensesList.innerHTML = `<div class="empty">Noch keine Ausgaben in diesem Zeitraum.</div>`;
@@ -221,27 +316,29 @@ if (DOM.remaining) {
             DOM.expensesList.innerHTML = expenses
                 .slice()
                 .sort((a, b) => b.date.localeCompare(a.date))
-                .map(x => `
-                    <div class="expense">
-                        <div class="expense-main">
-                            <div class="expense-title">${esc(x.category)}</div>
-                            <div class="expense-meta">${new Date(x.date).toLocaleDateString("de-DE")}${x.note ? " · " + esc(x.note) : ""}</div>
+                .map(x => {
+                    const emoji = getCategoryEmoji(x.category);
+                    const fullCatName = emoji ? `${emoji} ${x.category}` : x.category;
+                    return `
+                        <div class="expense">
+                            <div class="expense-main">
+                                <div class="expense-title">${esc(fullCatName)}</div>
+                                <div class="expense-meta">${new Date(x.date).toLocaleDateString("de-DE")}${x.note ? " · " + esc(x.note) : ""}</div>
+                            </div>
+                            <div class="expense-amount">−${euro(x.amount)}</div>
+                            <div class="expense-actions">
+                                <button type="button" data-id="${esc(x.id)}" class="edit-exp-btn" title="Bearbeiten">✎</button>
+                                <button type="button" data-id="${esc(x.id)}" class="delete-exp-btn" title="Löschen">×</button>
+                            </div>
                         </div>
-                        <div class="expense-amount">−${euro(x.amount)}</div>
-                        <div class="expense-actions">
-                            <button type="button" data-id="${esc(x.id)}" class="edit-exp-btn" title="Bearbeiten">✎</button>
-                            <button type="button" data-id="${esc(x.id)}" class="delete-exp-btn" title="Löschen">×</button>
-                        </div>
-                    </div>
-                `).join("");
+                    `;
+                }).join("");
         }
     }
 }
-//
-//   Knöpfen und Formulare, Interaktionen, Events & Service Worker
-//
+
 /* ==========================================================================
-   5. DIALOG INTERAKTIONEN & LOGIK
+   5. DIALOG STEUERUNG
    ========================================================================== */
 function openBudget() {
     const p = getPeriod();
@@ -265,28 +362,34 @@ function editExpense(id) {
     DOM.expenseDialog?.showModal();
 }
 
-// Variable, um sich die ID der zu löschenden Ausgabe kurzzeitig zu merken
-let expenseIdToDelete = null;
-
 function deleteExpense(id) {
     expenseIdToDelete = id;
-    // Öffnet den neuen Apple-Style Dialog statt des hässlichen Browser-Confirms
     DOM.deleteConfirmDialog?.showModal();
 }
-
 /* ==========================================================================
-   6. INITIALISIERUNG & EVENT LISTENERS (TEIL 1)
+   6. EVENT LISTENERS & HOOKS (START-BLOCK)
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
-    // DOM Cache befüllen (Verknüpft IDs aus HTML mit dem DOM-Objekt)
+    // DOM Cache befüllen & Ausfallsicherung für Schreibweisen im HTML
     Object.keys(DOM).forEach(key => { 
         DOM[key] = $(key === "expensesList" ? "expenses" : key); 
     });
 
-    render();
-    applyTheme(); // Lädt das gespeicherte oder System-Theme direkt beim Start
+    // Manuelle ausfallsichere Verknüpfungen für alle neuen Kategorie-Elemente
+    DOM.settingsCategoryList = $("settingsCategoryList") || $("settingscategorylist");
+    DOM.newCategoryInput = $("newCategoryInput") || $("newcategoryinput");
+    DOM.addCategoryBtn = $("addCategoryBtn") || $("addcategorybtn");
 
-    // Event-Klicks für feste Buttons
+    // Holt sich auch die neuen Dialog-Elemente manuell ins System (Ausfallsicher)
+    DOM.deleteCategoryDialog = $("deleteCategoryDialog") || $("deletecategorydialog");
+    DOM.deleteCategoryWarningText = $("deleteCategoryWarningText") || $("deletecategorywarningtext");
+    DOM.cancelDeleteCatBtn = $("cancelDeleteCatBtn") || $("canceldeletecatbtn");
+    DOM.confirmDeleteCatBtn = $("confirmDeleteCatBtn") || $("confirmdeletecatbtn");
+
+    render();
+    applyTheme(); 
+    renderCategorySelect(); 
+
     DOM.budgetValue?.addEventListener("click", openBudget);
 
     DOM.addBtn?.addEventListener("click", () => {
@@ -294,16 +397,60 @@ document.addEventListener("DOMContentLoaded", () => {
         if (DOM.expenseId) DOM.expenseId.value = "";
         if (DOM.expenseAmount) DOM.expenseAmount.value = "";
         if (DOM.expenseNote) DOM.expenseNote.value = "";
-        if (DOM.expenseCategory) DOM.expenseCategory.value = "Lebensmittel"; //Default-Wert bei den Kategorien
+        if (DOM.expenseCategory && state.categories && state.categories.length > 0) {
+            DOM.expenseCategory.value = state.categories[0];
+        }
         DOM.expenseDialog?.showModal();
         DOM.expenseAmount?.focus();
     });
 
-DOM.settingsBtn?.addEventListener("click", () => {
-    DOM.settingsDialog?.showModal();
-    if (DOM.startDayInput) DOM.startDayInput.value = state.startDay || 24;
-    if (DOM.themeSelect) DOM.themeSelect.value = state.theme || "light"; // Setzt das Menü standardmäßig auf Hell
-});
+    DOM.settingsBtn?.addEventListener("click", () => {
+        DOM.settingsDialog?.showModal();
+        if (DOM.startDayInput) DOM.startDayInput.value = state.startDay || 24;
+        if (DOM.themeSelect) DOM.themeSelect.value = state.theme || "light";
+        
+        renderSettingsCategories();
+    });
+
+    DOM.addCategoryBtn?.addEventListener("click", () => {
+        if (!DOM.newCategoryInput) return;
+        const newCat = DOM.newCategoryInput.value.trim();
+        
+        if (newCat) {
+            if (!state.categories) state.categories = ["Lebensmittel", "Drogerie", "Haushalt", "Kleidung", "Freizeit", "Auto", "Gesundheit", "Tabakwaren", "Sonstiges"];
+            
+            if (!state.categories.includes(newCat)) {
+                state.categories.push(newCat); 
+                if (save()) {
+                    DOM.newCategoryInput.value = ""; 
+                    renderSettingsCategories();     
+                    renderCategorySelect();         
+                }
+            } else {
+                alert("Diese Kategorie existiert bereits!");
+            }
+        }
+    });
+
+    // NEU: Klick-Event für das Abbrechen der Kategorie-Löschung
+    DOM.cancelDeleteCatBtn?.addEventListener("click", () => {
+        DOM.deleteCategoryDialog?.close();
+        catIndexToDelete = null;
+    });
+
+    // NEU: Klick-Event für das endgültige Löschen trotz aktiver Ausgaben
+    DOM.confirmDeleteCatBtn?.addEventListener("click", () => {
+        if (catIndexToDelete !== null && state.categories && state.categories[catIndexToDelete]) {
+            state.categories.splice(catIndexToDelete, 1);
+            if (save()) {
+                renderSettingsCategories();
+                renderCategorySelect();
+                render();
+            }
+        }
+        DOM.deleteCategoryDialog?.close();
+        catIndexToDelete = null;
+    });
 
     DOM.startDayInput?.addEventListener("change", (e) => {
         let val = parseInt(e.target.value, 10) || 24;
@@ -311,18 +458,15 @@ DOM.settingsBtn?.addEventListener("click", () => {
         if (save()) render();
     });
 
-    // Wechselt das Design, wenn der Nutzer das Dropdown ändert
     DOM.themeSelect?.addEventListener("change", (e) => {
         state.theme = e.target.value;
         if (save()) applyTheme();
     });
 
-    // Schaltet das Design live um, wenn das Smartphone auf Darkmode wechselt (nur bei Option "Auto")
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
         if (state.theme === "auto") applyTheme();
     });
 
-    // Formular-Absendungen (Submits) mit erzwungenem Schließen
     DOM.budgetForm?.addEventListener("submit", (e) => {
         e.preventDefault(); 
         if (e.submitter?.value === "save" && DOM.budgetInput) {
@@ -332,7 +476,7 @@ DOM.settingsBtn?.addEventListener("click", () => {
         }
         DOM.budgetDialog?.close();
     });
-    // Formular für Ausgaben mit erzwungenem Schließen
+
     DOM.expenseForm?.addEventListener("submit", (e) => {
         e.preventDefault(); 
         if (e.submitter?.value === "save" && DOM.expenseAmount) {
@@ -343,7 +487,7 @@ DOM.settingsBtn?.addEventListener("click", () => {
             const expense = {
                 id: id || newId(),
                 amount,
-                category: DOM.expenseCategory?.value || "Sonstiges", //Standard-Kategorie wird vergeben, falls das Feld mal leer sein sollte
+                category: DOM.expenseCategory?.value || "Sonstiges", 
                 note: DOM.expenseNote?.value.trim() || "",
                 date: id ? state.expenses.find(x => x.id === id)?.date || dateKey(new Date()) : dateKey(new Date())
             };
@@ -359,7 +503,6 @@ DOM.settingsBtn?.addEventListener("click", () => {
         DOM.expenseDialog?.close();
     });
 
-    // Event-Delegation für dynamisch erstellte Listen-Knöpfe
     DOM.expensesList?.addEventListener("click", (e) => {
         const editBtn = e.target.closest(".edit-exp-btn");
         const deleteBtn = e.target.closest(".delete-exp-btn");
@@ -367,13 +510,10 @@ DOM.settingsBtn?.addEventListener("click", () => {
         if (deleteBtn) deleteExpense(deleteBtn.dataset.id);
     });
 
-    // Event-Listener für den iOS-Löschdialog
     DOM.confirmDeleteBtn?.addEventListener("click", () => {
         if (expenseIdToDelete) {
             state.expenses = state.expenses.filter(x => x.id !== expenseIdToDelete);
-            if (save()) {
-                render();
-            }
+            if (save()) render();
         }
         DOM.deleteConfirmDialog?.close();
         expenseIdToDelete = null;
@@ -384,36 +524,29 @@ DOM.settingsBtn?.addEventListener("click", () => {
         expenseIdToDelete = null;
     });
 
-    // Startet den Export direkt über einen Button-Klick
-// Startet den Export direkt über einen Button-Klick
-DOM.directExportBtn?.addEventListener("click", () => {
-    const text = JSON.stringify(state);
-    navigator.clipboard.writeText(text)
-        .then(() => {
-            if (DOM.exportToast) {
-                DOM.exportToast.style.display = "block";
-                // Auf 4500ms erhöht, damit der Anwender den Hinweis in Ruhe lesen kann
-                setTimeout(() => { if (DOM.exportToast) DOM.exportToast.style.display = "none"; }, 4500);
-            }
-        })
-        .catch(() => {
-            alert(`Kopieren fehlgeschlagen! Bitte markiere und kopiere den folgenden Code manuell für deine Notizen-App:\n\n${text}`);
-        });
-});
+    DOM.directExportBtn?.addEventListener("click", () => {
+        const text = JSON.stringify(state);
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                if (DOM.exportToast) {
+                    DOM.exportToast.style.display = "block";
+                    setTimeout(() => { if (DOM.exportToast) DOM.exportToast.style.display = "none"; }, 4500);
+                }
+            })
+            .catch(() => {
+                alert(`Kopieren fehlgeschlagen! Bitte markiere und kopiere den folgenden Code manuell für deine Notizen-App:\n\n${text}`);
+            });
+    });
 
-
-    // Öffnet den Import-Dialog
     DOM.directImportBtn?.addEventListener("click", () => {
         if (DOM.importCodeInput) DOM.importCodeInput.value = "";
         DOM.importDataDialog?.showModal();
     });
 
-    // Bricht den Import ab
     DOM.cancelImportBtn?.addEventListener("click", () => {
         DOM.importDataDialog?.close();
     });
 
-    // Bestätigt den Import
     DOM.confirmImportBtn?.addEventListener("click", () => {
         const raw = DOM.importCodeInput?.value?.trim();
         if (raw) {
@@ -434,17 +567,16 @@ DOM.directExportBtn?.addEventListener("click", () => {
         }
     });
 
-    // Reset bei manuellem Schließen
     DOM.settingsDialog?.addEventListener("close", () => {
         if (DOM.exportToast) DOM.exportToast.style.display = "none";
     });
-}); // <--- SCHLIESST DOMCONTENTLOADED SAUBER AB!
+});
 
 /* ==========================================================================
-   7. SERVICE WORKER
+   7. SERVICE WORKER (VERSION GEÄNDERT FÜR INSTANT-UPDATE)
    ========================================================================== */
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js?v=11").catch(() => {});
+        navigator.serviceWorker.register("service-worker.js?v=12").catch(() => {});
     });
 }
