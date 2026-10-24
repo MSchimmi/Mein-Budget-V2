@@ -1,6 +1,6 @@
-// V13 - Udate Bundesländer
+// V14 - Udate Bundesländer
 
-const CACHE_NAME = "Mein-Budget-V13";
+const CACHE_NAME = "Mein-Budget-V14";
 const ASSETS = [
     "./",
     "./index.html",
