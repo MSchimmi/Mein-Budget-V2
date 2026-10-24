@@ -1,6 +1,6 @@
-// V10 - Dark Mode
+// V13 - Udate Bundesländer
 
-const CACHE_NAME = "Mein-Budget-V12";
+const CACHE_NAME = "Mein-Budget-V13";
 const ASSETS = [
     "./",
     "./index.html",
