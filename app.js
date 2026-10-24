@@ -1,8 +1,8 @@
-//     V13 - Update Bndesländer
+//     V14 - Update Bndesländer
 //     Initialisierung & Daten-Speicher
 // 
 
-const KEY = "meinBudget_v13";
+const KEY = "meinBudget_v14";
 let state = loadState();
 
 // Globaler Merker für die Dialoge
@@ -641,6 +641,6 @@ document.addEventListener("DOMContentLoaded", () => {
    ========================================================================== */
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js?v=13").catch(() => {});
+        navigator.serviceWorker.register("service-worker.js?v=14").catch(() => {});
     });
 }
