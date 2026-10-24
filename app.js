@@ -131,11 +131,59 @@ const dateKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDat
 const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const newId = () => `e_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 
-function nextWeekday(d) {
+
+function previousBankDay(d) {
     const x = new Date(d);
-    const day = x.getDay();
-    if (day === 6) x.setDate(x.getDate() + 2);
-    if (day === 0) x.setDate(x.getDate() + 1);
+    x.setHours(0, 0, 0, 0);
+
+    // Wochenenden überspringen
+    while (x.getDay() === 0 || x.getDay() === 6) {
+        x.setDate(x.getDate() - 1);
+    }
+
+    // Gesetzliche Feiertage in Niedersachsen
+    const holidays = new Set([
+        "01-01", "05-01", "10-03", "10-31",
+        "12-25", "12-26"
+    ]);
+
+    // Bewegliche Feiertage: Ostern und davon abhängige Tage
+    const year = x.getFullYear();
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d1 = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d1 - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    const easter = new Date(year, month - 1, day);
+
+    const movable = [-2, 1, 39, 50];
+    for (const offset of movable) {
+        const holiday = new Date(easter);
+        holiday.setDate(holiday.getDate() + offset);
+        holidays.add(
+            `${String(holiday.getMonth() + 1).padStart(2, "0")}-${String(holiday.getDate()).padStart(2, "0")}`
+        );
+    }
+
+    while (
+        x.getDay() === 0 ||
+        x.getDay() === 6 ||
+        holidays.has(
+            `${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`
+        )
+    ) {
+        x.setDate(x.getDate() - 1);
+    }
+
     return x;
 }
 
@@ -143,21 +191,48 @@ function getPeriod() {
     const now = new Date();
     const startDay = state?.startDay || 24;
 
-    let start = new Date(now.getFullYear(), now.getMonth(), startDay, 0, 0, 0, 0);
-    if (now < start) start.setMonth(start.getMonth() - 1);
-    start = nextWeekday(start);
+    let target = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        startDay,
+        0, 0, 0, 0
+    );
 
-    let endTarget = new Date(start.getFullYear(), start.getMonth() + 1, startDay, 0, 0, 0, 0);
+    if (now < target) {
+        target.setMonth(target.getMonth() - 1);
+    }
+
+    const start = previousBankDay(target);
+
+    let endTarget = new Date(
+        target.getFullYear(),
+        target.getMonth() + 1,
+        startDay
+    );
     endTarget.setDate(endTarget.getDate() - 1);
-    const end = new Date(endTarget.getFullYear(), endTarget.getMonth(), endTarget.getDate(), 23, 59, 59, 999);
+
+    const end = new Date(
+        endTarget.getFullYear(),
+        endTarget.getMonth(),
+        endTarget.getDate(),
+        23, 59, 59, 999
+    );
 
     return {
         key: `p_${dateKey(start)}`,
         start,
         end,
-        label: `${start.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${end.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}`
+        label: `${start.toLocaleDateString("de-DE", {
+            day: "2-digit",
+            month: "2-digit"
+        })} – ${end.toLocaleDateString("de-DE", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+        })}`
     };
 }
+
 
 function inPeriod(expense, p) {
     if (!expense.date) return false;
