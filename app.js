@@ -1,4 +1,4 @@
-//     V6 - Dark Mode - Sicherheitsabfrage Kategorien Fix
+//     V8 - Update Bndesländer
 //     Initialisierung & Daten-Speicher
 // 
 
@@ -21,6 +21,7 @@ const DOM = {
     startDayInput: null, settingsBtn: null, directExportBtn: null, 
     directImportBtn: null, exportToast: null,
     themeSelect: null,
+    federalStateSelect: null,
     exportSuccessDialog: null, closeExportSuccessBtn: null,
     importDataDialog: null, importCodeInput: null, confirmImportBtn: null, cancelImportBtn: null,
     addBtn: null, deleteConfirmDialog: null, confirmDeleteBtn: null, cancelDeleteBtn: null,
@@ -65,6 +66,7 @@ function loadState() {
             if (parsed && parsed.budgets && Array.isArray(parsed.expenses)) {
                 if (!parsed.startDay) parsed.startDay = 24;
                 if (!parsed.theme) parsed.theme = "light";
+                if (!parsed.federalState) parsed.federalState = "NI";
                 if (!parsed.categories || !Array.isArray(parsed.categories)) parsed.categories = defaultCategories;
                 return parsed;
             }
@@ -77,6 +79,7 @@ function loadState() {
                 if (parsed && parsed.budgets && Array.isArray(parsed.expenses)) {
                     if (!parsed.startDay) parsed.startDay = 24;
                     if (!parsed.theme) parsed.theme = "light";
+                    if (!parsed.federalState) parsed.federalState = "NI";
                     parsed.categories = defaultCategories;
                     return parsed;
                 }
@@ -90,6 +93,7 @@ function loadState() {
         period: "month", 
         startDay: 24, 
         theme: "light", 
+        federalState: "NI",
         budgets: {}, 
         expenses: [],
         categories: defaultCategories
@@ -131,108 +135,80 @@ const dateKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDat
 const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const newId = () => `e_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 
-
-function previousBankDay(d) {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-
-    // Wochenenden überspringen
-    while (x.getDay() === 0 || x.getDay() === 6) {
-        x.setDate(x.getDate() - 1);
-    }
-
-    // Gesetzliche Feiertage in Niedersachsen
-    const holidays = new Set([
-        "01-01", "05-01", "10-03", "10-31",
-        "12-25", "12-26"
-    ]);
-
-    // Bewegliche Feiertage: Ostern und davon abhängige Tage
-    const year = x.getFullYear();
-    const a = year % 19;
-    const b = Math.floor(year / 100);
-    const c = year % 100;
-    const d1 = Math.floor(b / 4);
-    const e = b % 4;
-    const f = Math.floor((b + 8) / 25);
+// Feiertage nach ausgewähltem Bundesland; 24. und 31. Dezember gelten hier als Bank-Schließtage.
+function easterSunday(year) {
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
     const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d1 - g + 15) % 30;
-    const i = Math.floor(c / 4);
-    const k = c % 4;
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4;
     const l = (32 + 2 * e + 2 * i - h - k) % 7;
     const m = Math.floor((a + 11 * h + 22 * l) / 451);
     const month = Math.floor((h + l - 7 * m + 114) / 31);
     const day = ((h + l - 7 * m + 114) % 31) + 1;
-    const easter = new Date(year, month - 1, day);
+    return new Date(year, month - 1, day);
+}
 
-    const movable = [-2, 1, 39, 50];
-    for (const offset of movable) {
-        const holiday = new Date(easter);
-        holiday.setDate(holiday.getDate() + offset);
-        holidays.add(
-            `${String(holiday.getMonth() + 1).padStart(2, "0")}-${String(holiday.getDate()).padStart(2, "0")}`
-        );
+function getBankHolidays(year, stateCode) {
+    const dates = new Set([
+        '01-01', '05-01', '10-03', '12-24', '12-25', '12-26', '12-31'
+    ]);
+    const states = {
+        BW: ['01-06', '11-01'], BY: ['01-06', '08-15', '11-01'], BE: ['03-08'],
+        BB: [], HB: [], HH: [], HE: [], MV: [], NI: [], NW: ['11-01'],
+        RP: ['11-01'], SL: ['01-06', '08-15', '11-01'], SN: [], ST: ['01-06'],
+        SH: [], TH: ['09-20']
+    };
+    (states[stateCode] || states.NI).forEach(d => dates.add(d));
+    // Reformationstag: gesetzlicher Feiertag in diesen Ländern
+    if (['BB','MV','SN','ST','TH','NI','HB','HH','SH'].includes(stateCode)) dates.add('10-31');
+    // Fronleichnam: gesetzlich in BW, BY, HE, NW, RP, SL sowie regional in SN/TH
+    if (['BW','BY','HE','NW','RP','SL'].includes(stateCode)) {
+        const easter = easterSunday(year); easter.setDate(easter.getDate() + 60);
+        dates.add(`${pad(easter.getMonth()+1)}-${pad(easter.getDate())}`);
     }
-
-    while (
-        x.getDay() === 0 ||
-        x.getDay() === 6 ||
-        holidays.has(
-            `${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`
-        )
-    ) {
-        x.setDate(x.getDate() - 1);
+    if (stateCode === 'SN') {
+        // Buß- und Bettag: Mittwoch vor dem 23. November
+        const d = new Date(year, 10, 23);
+        while (d.getDay() !== 3) d.setDate(d.getDate() - 1);
+        dates.add(`${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
     }
+    const easter = easterSunday(year);
+    for (const offset of [-2, 1, 39, 50]) {
+        const d = new Date(easter); d.setDate(d.getDate() + offset);
+        dates.add(`${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+    }
+    return dates;
+}
 
-    return x;
+function isNonBusinessDay(d) {
+    if (d.getDay() === 0 || d.getDay() === 6) return true;
+    return getBankHolidays(d.getFullYear(), state?.federalState || 'NI').has(`${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+}
+
+// Startet am letzten Bankarbeitstag vor oder am regulären Monatswechsel.
+function adjustedPeriodStart(year, month, startDay) {
+    const d = new Date(year, month, startDay, 0, 0, 0, 0);
+    while (isNonBusinessDay(d)) d.setDate(d.getDate() - 1);
+    return d;
 }
 
 function getPeriod() {
     const now = new Date();
     const startDay = state?.startDay || 24;
+    let start = adjustedPeriodStart(now.getFullYear(), now.getMonth(), startDay);
+    if (now < start) start = adjustedPeriodStart(now.getFullYear(), now.getMonth() - 1, startDay);
 
-    let target = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        startDay,
-        0, 0, 0, 0
-    );
-
-    if (now < target) {
-        target.setMonth(target.getMonth() - 1);
-    }
-
-    const start = previousBankDay(target);
-
-    let endTarget = new Date(
-        target.getFullYear(),
-        target.getMonth() + 1,
-        startDay
-    );
-    endTarget.setDate(endTarget.getDate() - 1);
-
-    const end = new Date(
-        endTarget.getFullYear(),
-        endTarget.getMonth(),
-        endTarget.getDate(),
-        23, 59, 59, 999
-    );
-
+    const nextStart = adjustedPeriodStart(start.getFullYear(), start.getMonth() + 1, startDay);
+    const endDate = new Date(nextStart);
+    endDate.setDate(endDate.getDate() - 1);
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999);
     return {
-        key: `p_${dateKey(start)}`,
-        start,
-        end,
-        label: `${start.toLocaleDateString("de-DE", {
-            day: "2-digit",
-            month: "2-digit"
-        })} – ${end.toLocaleDateString("de-DE", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-        })}`
+        key: `p_${dateKey(start)}`, start, end,
+        // Beschriftung nennt den nächsten Monatswechsel ausdrücklich; der Endtag selbst gehört nicht mehr zum Zeitraum.
+        label: `${start.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} – ${nextStart.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
     };
 }
-
 
 function inPeriod(expense, p) {
     if (!expense.date) return false;
@@ -453,6 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Manuelle ausfallsichere Verknüpfungen für alle neuen Kategorie-Elemente
     DOM.settingsCategoryList = $("settingsCategoryList") || $("settingscategorylist");
     DOM.newCategoryInput = $("newCategoryInput") || $("newcategoryinput");
+    DOM.federalStateSelect = $("federalStateSelect");
     DOM.addCategoryBtn = $("addCategoryBtn") || $("addcategorybtn");
 
     // Holt sich auch die neuen Dialog-Elemente manuell ins System (Ausfallsicher)
@@ -483,7 +460,7 @@ document.addEventListener("DOMContentLoaded", () => {
         DOM.settingsDialog?.showModal();
         if (DOM.startDayInput) DOM.startDayInput.value = state.startDay || 24;
         if (DOM.themeSelect) DOM.themeSelect.value = state.theme || "light";
-        
+        if (DOM.federalStateSelect) DOM.federalStateSelect.value = state.federalState || "NI";
         renderSettingsCategories();
     });
 
@@ -538,6 +515,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (save()) applyTheme();
     });
 
+    DOM.federalStateSelect?.addEventListener("change", (e) => {
+        state.federalState = e.target.value || "NI";
+        if (save()) render();
+    });
+
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
         if (state.theme === "auto") applyTheme();
     });
@@ -553,29 +535,36 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     DOM.expenseForm?.addEventListener("submit", (e) => {
-        e.preventDefault(); 
-        if (e.submitter?.value === "save" && DOM.expenseAmount) {
-            const amount = Number(DOM.expenseAmount.value.trim().replace(",", "."));
-            if (!amount || isNaN(amount)) return;
-
-            const id = DOM.expenseId?.value;
-            const expense = {
-                id: id || newId(),
-                amount,
-                category: DOM.expenseCategory?.value || "Sonstiges", 
-                note: DOM.expenseNote?.value.trim() || "",
-                date: id ? state.expenses.find(x => x.id === id)?.date || dateKey(new Date()) : dateKey(new Date())
-            };
-
-            if (id) {
-                state.expenses = state.expenses.map(x => x.id === id ? expense : x);
-            } else {
-                state.expenses.push(expense);
-            }
-
-            if (save()) render();
+        e.preventDefault();
+        const submitter = e.submitter || document.activeElement;
+        // Falls der Browser beim Absenden per Enter keinen submitter liefert, wird standardmäßig gespeichert.
+        if (submitter?.value === "cancel" || submitter?.textContent?.trim() === "Abbrechen") {
+            DOM.expenseDialog?.close();
+            return;
         }
-        DOM.expenseDialog?.close();
+        if (!DOM.expenseAmount) return;
+        const amountText = DOM.expenseAmount.value.trim().replace(/\s/g, "").replace(",", ".");
+        const amount = Number(amountText);
+        if (!amountText || !Number.isFinite(amount) || amount <= 0) {
+            alert("Bitte gib einen gültigen Betrag größer als 0 ein.");
+            DOM.expenseAmount?.focus();
+            return;
+        }
+
+        const id = DOM.expenseId?.value;
+        const expense = {
+            id: id || newId(), amount,
+            category: DOM.expenseCategory?.value || "Sonstiges",
+            note: DOM.expenseNote?.value.trim() || "",
+            date: id ? state.expenses.find(x => x.id === id)?.date || dateKey(new Date()) : dateKey(new Date())
+        };
+        if (id) state.expenses = state.expenses.map(x => x.id === id ? expense : x);
+        else state.expenses.push(expense);
+
+        if (save()) {
+            render();
+            DOM.expenseDialog?.close();
+        }
     });
 
     DOM.expensesList?.addEventListener("click", (e) => {
