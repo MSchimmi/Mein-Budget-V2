@@ -21,6 +21,12 @@
     <!-- iOS Web App Meta-Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="#ffe0e9">
+
+    <style>
+      dialog#settingsDialog { max-height: calc(100dvh - 24px); max-width: min(94vw, 520px); overflow: auto; box-sizing: border-box; }
+      dialog#settingsDialog .dialog-card { max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; }
+      dialog#settingsDialog .dialog-actions { position: sticky; bottom: 0; padding-top: 10px; background: var(--card-bg, #fff); }
+    </style>
 </head>
 
 <body>
@@ -200,6 +206,29 @@
         <option value="dark">Dunkles Design</option>
     </select>
 </div>
+
+<label for="federalStateSelect">📍 Bundesland für Feiertage</label>
+<div class="dropdown-wrapper margin-bottom-sm">
+    <select id="federalStateSelect">
+        <option value="BW">Baden-Württemberg</option>
+        <option value="BY">Bayern</option>
+        <option value="BE">Berlin</option>
+        <option value="BB">Brandenburg</option>
+        <option value="HB">Bremen</option>
+        <option value="HH">Hamburg</option>
+        <option value="HE">Hessen</option>
+        <option value="MV">Mecklenburg-Vorpommern</option>
+        <option value="NI">Niedersachsen</option>
+        <option value="NW">Nordrhein-Westfalen</option>
+        <option value="RP">Rheinland-Pfalz</option>
+        <option value="SL">Saarland</option>
+        <option value="SN">Sachsen</option>
+        <option value="ST">Sachsen-Anhalt</option>
+        <option value="SH">Schleswig-Holstein</option>
+        <option value="TH">Thüringen</option>
+    </select>
+</div>
+
 <!-- NEU: Eigene Kategorien verwalten -->
 <!-- Eigene Kategorien verwalten -->
 <label>🏷️ Kategorien verwalten</label>
